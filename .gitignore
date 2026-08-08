@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js Build Output
+.next/
+out/
+build/
+dist/
+
+# TypeScript Build Info
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment & Secrets (ignore all .env files EXCEPT examples)
+.env
+.env*.local
+.env.development
+.env.test
+.env.production
+!.env.example
+!env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Arduino / ESP8266 Build Artifacts
+*.bin
+*.elf
+*.hex
+*.o
+*.d
+*.a
+
+# Editor & OS Artifacts
+.DS_Store
+*.pem
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
