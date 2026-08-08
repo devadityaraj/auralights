@@ -71,7 +71,7 @@ void begin() {
   }
 
   if (auth.token.uid.length() == 0) {
-    Serial.println(F("[Firebase] Authentication failed or timed out - check secrets.h"));
+    Serial.println(F("[Firebase] Authentication failed or timed out - check credentials in secrets.h"));
     ready = false;
     return;
   }

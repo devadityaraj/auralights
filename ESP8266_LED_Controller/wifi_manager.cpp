@@ -14,8 +14,10 @@ void begin() {
   WiFi.mode(WIFI_STA);
   WiFi.persistent(true);
   WiFi.setAutoReconnect(true);
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.println(F("Connecting to WiFi..."));
+  Serial.print(F("Connecting to WiFi: "));
+  Serial.println(WIFI_SSID);
 }
 
 bool waitForConnection(uint32_t timeoutMs) {

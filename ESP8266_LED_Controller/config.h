@@ -1,15 +1,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define FIRMWARE_VERSION "0.0.1"
-#define DEVICE_ID "desktop1"
+#define FIRMWARE_VERSION "1.0.0"
 
 #define LED_PIN_1           D2
 #define LED_COUNT_1          24 //No of leds
 #define LED_CHIPSET          WS2812B
 #define LED_COLOR_ORDER      GRB
 
-#define DUAL_STRIP_ENABLED  flase //change to true if using 2 strips
+#define DUAL_STRIP_ENABLED  false //change to true if using 2 strips
 #define LED_PIN_2           D3
 #define LED_COUNT_2          30 //no of leds
 
@@ -32,12 +31,5 @@
 #define WIFI_RECONNECT_INTERVAL_MS      5000UL
 #define STREAM_RECONNECT_INTERVAL_MS    5000UL
 #define WIFI_BOOT_TIMEOUT_MS           15000UL
-
-#define OTA_GITHUB_OWNER     "devadityaraj"
-#define OTA_GITHUB_REPO      "auralights"
-#define OTA_GITHUB_API_HOST  "api.github.com"
-#define OTA_USER_AGENT       "AuraLights-ESP8266-OTA"
-#define OTA_CHECK_ON_BOOT    true
-#define OTA_PERIODIC_CHECK_INTERVAL_MS  0UL
 
 #endif

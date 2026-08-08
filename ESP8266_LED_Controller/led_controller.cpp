@@ -7,7 +7,6 @@
 namespace {
   CRGB leds1[LED_COUNT_1];
   uint8_t heat1[LED_COUNT_1];
-
 #if DUAL_STRIP_ENABLED
   CRGB leds2[LED_COUNT_2];
   uint8_t heat2[LED_COUNT_2];
@@ -99,33 +98,35 @@ namespace {
   }
 
   void renderCandle(CRGB* buf, int n) {
-    candleBase = (candleBase * 3 + random8(170, 255)) / 4;
-    CRGB flameCol = blend(CRGB(255, 60, 0), CRGB(255, 190, 30), candleBase);
-    fill_solid(buf, n, flameCol);
-    for (int i = 0; i < n; i++) {
-      if (random8() < 25) buf[i] = blend(buf[i], CRGB(255, 230, 90), random8(20, 60));
-    }
+    uint8_t flicker = random8(40);
+    uint8_t val = (candleBase > flicker) ? candleBase - flicker : 160;
+    CRGB flame = CHSV(25, 240, val);
+    fill_solid(buf, n, flame);
   }
 
   void renderFire(CRGB* buf, uint8_t* heat, int n) {
-    uint8_t sparking = 120;
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
       heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / n) + 2));
-    for (int k = n - 1; k >= 2; k--)
-      heat[k] = (heat[k-1] + heat[k-2] + heat[k-2]) / 3;
-    if (random8() < sparking) {
-      int y = random8(7);
-      if (y < n) heat[y] = qadd8(heat[y], random8(160, 255));
     }
-    for (int j = 0; j < n; j++) buf[j] = HeatColor(heat[j]);
+    for (int k = n - 1; k >= 2; k--) {
+      heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+    }
+    if (random8() < 160) {
+      int y = random8(min(7, n));
+      heat[y] = qadd8(heat[y], random8(160, 255));
+    }
+    for (int j = 0; j < n; j++) {
+      buf[j] = HeatColor(heat[j]);
+    }
   }
 
   void renderCyberwave(CRGB* buf, int n) {
-    static const CRGB cyberCyan = CRGB(0, 235, 255);
-    static const CRGB hotPink   = CRGB(255, 10, 150);
     for (int i = 0; i < n; i++) {
-      uint8_t blendAmt = sin8((i * 255 / max(1, n)) + wavePos);
-      buf[i] = blend(cyberCyan, hotPink, blendAmt);
+      uint8_t p = (i * 256 / max(1, n)) + (wavePos & 0xFF);
+      uint8_t s = sin8(p);
+      CRGB c1 = CRGB(255, 0, 128);
+      CRGB c2 = CRGB(0, 220, 255);
+      buf[i] = blend(c1, c2, s);
     }
   }
 
@@ -135,59 +136,56 @@ namespace {
       lastStrobeMs = now;
       strobeState = !strobeState;
     }
-    fill_solid(buf, n, strobeState ? CRGB(240, 250, 255) : CRGB::Black);
+    fill_solid(buf, n, strobeState ? CRGB::White : CRGB::Black);
   }
 
   void renderRain(CRGB* buf, int n) {
-    for (int i = n - 1; i > 0; i--) {
-      buf[i] = buf[i - 1];
-      buf[i].fadeToBlackBy(35);
-    }
-    if (random8() < 35) {
-      buf[0] = (random8() < 50) ? CRGB(110, 210, 255) : CRGB(40, 150, 255);
-    } else {
-      buf[0] = CRGB::Black;
+    fadeToBlackBy(buf, n, 30);
+    if (random8(10) < 3) {
+      int pos = random16(n);
+      buf[pos] = CRGB(160, 200, 255);
     }
   }
 
   void renderMeteor(CRGB* buf, int n) {
-    for (int i = 0; i < n; i++) buf[i].fadeToBlackBy(45);
-    int head = (meteorTick / 2) % (2 * n);
-    if (head >= n) head = 2 * n - 1 - head;
-    for (int t = 0; t < 7 && head - t >= 0; t++) {
-      uint8_t amt = 255 - t * 38;
-      buf[head - t] = blend(CRGB(10, 110, 255), CRGB(235, 250, 255), amt);
+    fadeToBlackBy(buf, n, 64);
+    int pos = (meteorTick / 3) % (n + 6);
+    for (int j = 0; j < 4; j++) {
+      int idx = pos - j;
+      if (idx >= 0 && idx < n) {
+        buf[idx] = CRGB(255, 220, 180);
+        buf[idx].fadeToBlackBy(j * 60);
+      }
     }
   }
 
   void renderTwinkle(CRGB* buf, int n) {
-    for (int i = 0; i < n; i++) buf[i].fadeToBlackBy(16);
+    fadeToBlackBy(buf, n, 12);
     if (random8() < 40) {
-      int idx = random8(n);
-      buf[idx] = (random8() < 60) ? CRGB(255, 235, 180) : CRGB(180, 225, 255);
+      int pos = random16(n);
+      buf[pos] = CHSV(random8(), 180, 255);
     }
   }
 
   void renderChase(CRGB* buf, int n) {
-    for (int i = 0; i < n; i++) buf[i].fadeToBlackBy(55);
-    int pos = chasePos % n;
-    buf[pos] = CHSV(chaseHue, 255, 255);
-    if (pos > 0) buf[pos - 1] = CHSV(chaseHue - 8, 240, 160);
-    if (pos > 1) buf[pos - 2] = CHSV(chaseHue - 16, 240, 70);
+    fadeToBlackBy(buf, n, 50);
+    for (int i = 0; i < 3; i++) {
+      int pos = (chasePos + (i * (n / 3))) % max(1, n);
+      buf[pos] = CHSV(chaseHue + (i * 40), 220, 255);
+    }
   }
 
   void renderParty(CRGB* buf, int n) {
-    for (int i = 0; i < n; i++) buf[i].fadeToBlackBy(30);
-    if (random8() < 120) buf[random8(n)] = CHSV(partyHue, 255, 255);
-    if (random8() < 120) buf[random8(n)] = CHSV(partyHue + 85, 255, 255);
+    for (int i = 0; i < n; i++) {
+      buf[i] = CHSV(partyHue + (i * 255 / max(1, n)), 240, 255);
+    }
   }
 
   void renderBounce(CRGB* buf, int n) {
-    for (int i = 0; i < n; i++) buf[i].fadeToBlackBy(45);
-    int pos = bouncePos;
-    buf[pos] = CHSV(bounceHue, 255, 255);
-    if (bounceDir > 0 && pos > 0) buf[pos - 1] = CHSV(bounceHue - 8, 230, 140);
-    if (bounceDir < 0 && pos < n - 1) buf[pos + 1] = CHSV(bounceHue - 8, 230, 140);
+    fadeToBlackBy(buf, n, 40);
+    if (bouncePos < n) {
+      buf[bouncePos] = CHSV(bounceHue, 220, 255);
+    }
   }
 
   void applyEffect(CRGB* buf, uint8_t* heat, int n, const DeviceState& s) {
@@ -210,46 +208,55 @@ namespace {
     }
   }
 
-  void advancePhase(EffectType e) {
-    switch (e) {
+  void advancePhase(EffectType effect, int n) {
+    switch (effect) {
       case EffectType::RAINBOW:
         rainbowHue++;
         break;
-      case EffectType::AURORA:
-        auroraPos += 1;
-        break;
       case EffectType::BREATHING:
-        breathPhase += 1;
-        if (++breathTick >= 4) { breathTick = 0; breathHue++; }
+        breathPhase += 2;
+        if (breathPhase == 0) {
+          breathTick++;
+          if (breathTick % 3 == 0) breathHue += 40;
+        }
         break;
       case EffectType::PULSE:
         pulsePhase += 3;
-        if (++pulseTick >= 3) { pulseTick = 0; pulseHue++; }
+        if (pulsePhase == 0) {
+          pulseTick++;
+          if (pulseTick % 2 == 0) pulseHue += 45;
+        }
+        break;
+      case EffectType::AURORA:
+        auroraPos += 2;
         break;
       case EffectType::CYBERWAVE:
-        wavePos += 2;
+        wavePos += 4;
         break;
       case EffectType::METEOR:
         meteorTick++;
         break;
       case EffectType::CHASE:
-        chasePos++;
-        chaseHue++;
+        chasePos = (chasePos + 1) % max(1, n);
+        chaseHue += 2;
         break;
       case EffectType::PARTY:
-        partyHue += 2;
+        partyHue += 3;
         break;
       case EffectType::BOUNCE:
-        bounceHue++;
         bouncePos += bounceDir;
-        if (bounceDir > 0 && bouncePos >= LED_COUNT_1 - 1) bounceDir = -1;
-        if (bounceDir < 0 && bouncePos == 0)               bounceDir =  1;
+        if (bouncePos >= n - 1) {
+          bounceDir = -1;
+          bounceHue += 32;
+        } else if (bouncePos <= 0) {
+          bounceDir = 1;
+          bounceHue += 32;
+        }
         break;
       default:
         break;
     }
   }
-
 }
 
 namespace LEDController {
@@ -258,29 +265,24 @@ void begin() {
   FastLED.addLeds<LED_CHIPSET, LED_PIN_1, LED_COLOR_ORDER>(leds1, LED_COUNT_1);
 #if DUAL_STRIP_ENABLED
   FastLED.addLeds<LED_CHIPSET, LED_PIN_2, LED_COLOR_ORDER>(leds2, LED_COUNT_2);
+#endif
+  FastLED.setBrightness(0);
+  FastLED.clear();
+  FastLED.show();
+  memset(heat1, 0, sizeof(heat1));
+#if DUAL_STRIP_ENABLED
   memset(heat2, 0, sizeof(heat2));
 #endif
-  memset(heat1, 0, sizeof(heat1));
-  FastLED.clear(true);
-  FastLED.show();
 }
 
 void update(const DeviceState& state) {
   if (!state.power) {
     if (!offApplied) {
-      fill_solid(leds1, LED_COUNT_1, CRGB::Black);
-#if DUAL_STRIP_ENABLED
-      fill_solid(leds2, LED_COUNT_2, CRGB::Black);
-#endif
-      FastLED.setBrightness(0);
-      FastLED.show();
-      delay(2);
+      FastLED.clear();
       FastLED.show();
       offApplied = true;
+      transitionState = Transition::IDLE;
     }
-    transitionState      = Transition::IDLE;
-    transitionBrightness = 255;
-    activeEffect         = state.effect;
     return;
   }
   offApplied = false;
@@ -336,7 +338,7 @@ void update(const DeviceState& state) {
   applyEffect(leds2, heat2, LED_COUNT_2, rs);
 #endif
 
-  advancePhase(activeEffect);
+  advancePhase(activeEffect, LED_COUNT_1);
 
   uint8_t tb = map(clampPercent(state.brightness), 0, 100, 0, 255);
   FastLED.setBrightness(scale8(tb, transitionBrightness));
