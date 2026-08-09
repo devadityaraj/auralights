@@ -17,8 +17,11 @@ namespace {
   bool ready = false;
   bool streamActive = false;
   bool initialReadDone = false;
+  bool cachedFirebaseReady = false;
 
   uint32_t lastStreamRetry = 0;
+  uint32_t lastReadyCheck  = 0;
+  static const uint32_t TOKEN_CHECK_INTERVAL_MS = 15UL * 60UL * 1000UL;
 
   volatile bool streamEventPending = false;
   String pendingDataPath;
@@ -161,8 +164,13 @@ void handle(DeviceState& state, bool& stateChangedByFirebase) {
     return;
   }
 
-  // Critical: Firebase.ready() manages automatic 1-hour token renewal and authentication state
-  if (!Firebase.ready()) {
+  // Check token validity at most once every 15 minutes
+  uint32_t now = millis();
+  if (!cachedFirebaseReady || (now - lastReadyCheck >= TOKEN_CHECK_INTERVAL_MS)) {
+    lastReadyCheck = now;
+    cachedFirebaseReady = Firebase.ready();
+  }
+  if (!cachedFirebaseReady) {
     return;
   }
 
