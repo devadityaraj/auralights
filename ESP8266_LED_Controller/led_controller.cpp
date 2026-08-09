@@ -267,21 +267,38 @@ void begin() {
   FastLED.addLeds<LED_CHIPSET, LED_PIN_2, LED_COLOR_ORDER>(leds2, LED_COUNT_2);
 #endif
   FastLED.setBrightness(0);
-  FastLED.clear();
-  FastLED.show();
+  fill_solid(leds1, LED_COUNT_1, CRGB::Black);
   memset(heat1, 0, sizeof(heat1));
 #if DUAL_STRIP_ENABLED
+  fill_solid(leds2, LED_COUNT_2, CRGB::Black);
   memset(heat2, 0, sizeof(heat2));
 #endif
+  FastLED.clear(true);
+  for (int i = 0; i < 3; i++) {
+    FastLED.show();
+    delay(2);
+  }
 }
 
 void update(const DeviceState& state) {
   if (!state.power) {
     if (!offApplied) {
-      FastLED.clear();
-      FastLED.show();
+      fill_solid(leds1, LED_COUNT_1, CRGB::Black);
+      memset(heat1, 0, sizeof(heat1));
+#if DUAL_STRIP_ENABLED
+      fill_solid(leds2, LED_COUNT_2, CRGB::Black);
+      memset(heat2, 0, sizeof(heat2));
+#endif
+      FastLED.setBrightness(0);
+      FastLED.clear(true);
+      for (int i = 0; i < 3; i++) {
+        FastLED.show();
+        delay(2);
+      }
       offApplied = true;
       transitionState = Transition::IDLE;
+      transitionBrightness = 255;
+      Serial.println(F("[LED] Power OFF applied - all LEDs set to (0,0,0)"));
     }
     return;
   }

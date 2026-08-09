@@ -34,19 +34,9 @@ void setup() {
   bool wifiUp = WiFiManager::waitForConnection(WIFI_BOOT_TIMEOUT_MS);
 
   if (wifiUp) {
-    Serial.println();
-    Serial.println(F("Connecting to Firebase..."));
     FirebaseManager::begin();
-
-    if (FirebaseManager::isReady()) {
-      if (!FirebaseManager::readInitialState(deviceState)) {
-        Serial.println(F("[Setup] Using default LED state (device node not found yet)"));
-      }
-      LEDController::update(deviceState);
-      FirebaseManager::startStream();
-    }
   } else {
-    Serial.println(F("[Setup] Continuing offline - WiFi will keep retrying in the background"));
+    Serial.println(F("[Setup] Continuing offline - WiFi and Firebase will connect in background"));
   }
 
   Serial.println();
