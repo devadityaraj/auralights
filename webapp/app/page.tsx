@@ -558,7 +558,7 @@ export default function Page() {
               className={`mode-tab-btn ${activeTray === 'effects' ? 'active' : ''}`}
               onClick={() => setActiveTray('effects')}
             >
-              <Wand2 size={12} /> Effects ({effectDefinitions.length})
+              <Wand2 size={12} /> Effects
             </button>
             <button
               className={`mode-tab-btn ${activeTray === 'timer' ? 'active' : ''}`}
@@ -618,9 +618,8 @@ export default function Page() {
                 {[15, 30, 60, 120].map((mins) => (
                   <button
                     key={mins}
-                    className={`timer-compact-btn ${
-                      selected.timerMinutes === mins ? 'active' : ''
-                    }`}
+                    className={`timer-compact-btn ${selected.timerMinutes === mins ? 'active' : ''
+                      }`}
                     onClick={() => {
                       const timerEnd = Date.now() + mins * 60 * 1000
                       patchDevice({ timerMinutes: mins, timerEnd })

@@ -28,7 +28,20 @@ namespace {
   uint32_t lastStrobeMs = 0;
   bool     strobeState  = false;
 
-  uint16_t meteorTick = 0;
+  struct MeteorPalette { CRGB head; CRGB tail; };
+  static const MeteorPalette meteorPalettes[] = {
+    { CRGB(0,   120, 255), CRGB(0,   220, 255) },  // Blue     -> Cyan
+    { CRGB(255, 60,  0  ), CRGB(255, 200, 0  ) },  // Orange-red -> Yellow
+    { CRGB(0,   220, 180), CRGB(255, 255, 255) },  // Cyan     -> White
+    { CRGB(255, 10,  0  ), CRGB(255, 120, 0  ) },  // Red      -> Orange
+    { CRGB(160, 0,   255), CRGB(0,   80,  255) },  // Purple   -> Blue
+    { CRGB(255, 220, 0  ), CRGB(255, 55,  0  ) },  // Yellow   -> Orange-Red
+  };
+  static const uint8_t METEOR_PALETTE_COUNT = 6;
+
+  uint16_t meteorTick     = 0;
+  uint8_t  meteorColorIdx = 0;
+  int      meteorLastPos  = -1;
   uint8_t  chasePos   = 0;
   uint8_t  chaseHue   = 0;
   uint8_t  partyHue   = 0;
@@ -148,13 +161,28 @@ namespace {
   }
 
   void renderMeteor(CRGB* buf, int n) {
-    fadeToBlackBy(buf, n, 64);
-    int pos = (meteorTick / 3) % (n + 6);
-    for (int j = 0; j < 4; j++) {
+    static const uint8_t TAIL_LEN = 8;
+
+    fadeToBlackBy(buf, n, 40);
+
+    int pos = (meteorTick / 3) % (n + TAIL_LEN);
+
+    if (meteorLastPos >= 0 && pos < meteorLastPos) {
+      meteorColorIdx = (meteorColorIdx + 1) % METEOR_PALETTE_COUNT;
+    }
+    meteorLastPos = pos;
+
+    CRGB headCol = meteorPalettes[meteorColorIdx].head;
+    CRGB tailCol = meteorPalettes[meteorColorIdx].tail;
+
+    for (int j = 0; j < TAIL_LEN; j++) {
       int idx = pos - j;
       if (idx >= 0 && idx < n) {
-        buf[idx] = CRGB(255, 220, 180);
-        buf[idx].fadeToBlackBy(j * 60);
+        uint8_t blendAmt = (uint8_t)((j * 255) / (TAIL_LEN - 1));
+        CRGB c = blend(headCol, tailCol, blendAmt);
+        uint8_t fade = (uint8_t)(j * j * 5);
+        c.fadeToBlackBy(fade);
+        buf[idx] = c;
       }
     }
   }
