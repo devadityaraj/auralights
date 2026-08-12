@@ -211,7 +211,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Register a new account (this is your user account, separate from the device account). After logging in, add a light using the same `DEVICE_ID` string you put in `secrets.h`.
+Login to your account (same that you created at Firebase Authentication, same as login credentials in the ESP8266). After logging in, add a light using the same DEVICE_ID string you put in secrets.h.
 
 ---
 
