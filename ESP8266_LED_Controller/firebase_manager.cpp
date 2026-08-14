@@ -18,10 +18,12 @@ namespace {
   bool streamActive = false;
   bool initialReadDone = false;
   bool cachedFirebaseReady = false;
+  bool wasConnected = false;
 
   uint32_t lastStreamRetry = 0;
   uint32_t lastReadyCheck  = 0;
-  static const uint32_t TOKEN_CHECK_INTERVAL_MS = 15UL * 60UL * 1000UL;
+
+  static const uint32_t TOKEN_CHECK_INTERVAL_MS = 2UL * 60UL * 1000UL;
 
   volatile bool streamEventPending = false;
   String pendingDataPath;
@@ -72,11 +74,11 @@ void begin() {
   streamData.setResponseSize(2048);
 
   Firebase.begin(&fbConfig, &auth);
-  Firebase.reconnectWiFi(true);
 
   firebaseInitialized = true;
   Serial.println(F("[Firebase] Initialized auth and configuration"));
 }
+
 
 bool isReady() { return ready; }
 String getDevicePath() { return devicePath; }
@@ -154,9 +156,31 @@ void startStream() {
 void handle(DeviceState& state, bool& stateChangedByFirebase) {
   stateChangedByFirebase = false;
 
-  if (!WiFiManager::isConnected()) {
-    streamActive = false;
+  bool currentlyConnected = WiFiManager::isConnected();
+
+  if (!currentlyConnected) {
+    if (wasConnected) {
+      Serial.println(F("[Firebase] WiFi lost - tearing down Firebase"));
+      Firebase.endStream(streamData);
+      streamActive        = false;
+      ready               = false;
+      initialReadDone     = false;
+      cachedFirebaseReady = false;
+      firebaseInitialized = false;
+      uid                 = "";
+      devicePath          = "";
+      lastReadyCheck      = 0;
+      lastStreamRetry     = 0;
+      streamEventPending  = false;
+      wasConnected        = false;
+      Serial.println(F("[Firebase] State cleared - will re-init on reconnect"));
+    }
     return;
+  }
+
+  if (!wasConnected) {
+    wasConnected = true;
+    Serial.println(F("[Firebase] WiFi restored - starting Firebase re-init"));
   }
 
   if (!firebaseInitialized) {
@@ -164,11 +188,16 @@ void handle(DeviceState& state, bool& stateChangedByFirebase) {
     return;
   }
 
-  // Check token validity at most once every 15 minutes
+  yield();
+
   uint32_t now = millis();
+
   if (!cachedFirebaseReady || (now - lastReadyCheck >= TOKEN_CHECK_INTERVAL_MS)) {
-    lastReadyCheck = now;
+    lastReadyCheck      = now;
     cachedFirebaseReady = Firebase.ready();
+    if (!cachedFirebaseReady) {
+      Serial.println(F("[Firebase] Token not ready - waiting for re-auth"));
+    }
   }
   if (!cachedFirebaseReady) {
     return;
@@ -181,7 +210,7 @@ void handle(DeviceState& state, bool& stateChangedByFirebase) {
     }
 
     devicePath = "/users/" + uid + "/devices/" + String(DEVICE_ID);
-    ready = true;
+    ready      = true;
 
     Serial.println(F("[Firebase] Authentication ready & token valid"));
     Serial.print(F("[Firebase] UID: "));
@@ -198,14 +227,11 @@ void handle(DeviceState& state, bool& stateChangedByFirebase) {
     startStream();
   }
 
-  if (ready) {
-    if (!streamActive || !streamData.httpConnected()) {
-      uint32_t now = millis();
-      if (now - lastStreamRetry >= STREAM_RECONNECT_INTERVAL_MS) {
-        lastStreamRetry = now;
-        Serial.println(F("[Firebase] Stream inactive or disconnected - reconnecting..."));
-        startStream();
-      }
+  if (ready && (!streamActive || !streamData.httpConnected())) {
+    if (now - lastStreamRetry >= STREAM_RECONNECT_INTERVAL_MS) {
+      lastStreamRetry = now;
+      Serial.println(F("[Firebase] Stream inactive or disconnected - reconnecting..."));
+      startStream();
     }
   }
 

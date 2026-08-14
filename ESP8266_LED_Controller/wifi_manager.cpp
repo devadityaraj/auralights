@@ -6,6 +6,8 @@
 
 namespace {
   uint32_t lastReconnectAttempt = 0;
+  uint8_t  reconnectAttempts    = 0;
+  bool     ntpSynced            = false;
 }
 
 namespace WiFiManager {
@@ -33,6 +35,7 @@ bool waitForConnection(uint32_t timeoutMs) {
 
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
     Serial.println(F("[NTP] Time sync started"));
+    ntpSynced = true;
 
     return true;
   }
@@ -47,14 +50,30 @@ bool isConnected() {
 
 void handle() {
   if (WiFi.status() == WL_CONNECTED) {
+    if (!ntpSynced) {
+      configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+      Serial.println(F("[NTP] Time sync started after reconnect"));
+      ntpSynced = true;
+    }
+    reconnectAttempts = 0;
     return;
   }
+
+  ntpSynced = false;
 
   uint32_t now = millis();
   if (now - lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL_MS) {
     lastReconnectAttempt = now;
-    Serial.println(F("[WiFi] Disconnected - attempting reconnect"));
-    WiFi.reconnect();
+    reconnectAttempts++;
+
+    if (reconnectAttempts > 6) {
+      reconnectAttempts = 0;
+      Serial.println(F("[WiFi] Hard reconnect - calling WiFi.begin()"));
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    } else {
+      Serial.println(F("[WiFi] Disconnected - attempting reconnect"));
+      WiFi.reconnect();
+    }
   }
 }
 

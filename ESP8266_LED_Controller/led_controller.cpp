@@ -39,13 +39,14 @@ namespace {
   };
   static const uint8_t METEOR_PALETTE_COUNT = 6;
 
-  uint16_t meteorTick     = 0;
-  uint8_t  meteorColorIdx = 0;
-  int      meteorLastPos  = -1;
+  uint16_t meteorTick      = 0;
+  uint8_t  meteorColorIdx  = 0;
+  int      meteorLastPos1  = -1;
+  int      meteorLastPos2  = -1;
   uint8_t  chasePos   = 0;
   uint8_t  chaseHue   = 0;
   uint8_t  partyHue   = 0;
-  uint8_t  bouncePos  = 0;
+  int16_t  bouncePos  = 0;
   int8_t   bounceDir  = 1;
   uint8_t  bounceHue  = 0;
 
@@ -160,17 +161,18 @@ namespace {
     }
   }
 
-  void renderMeteor(CRGB* buf, int n) {
+  void renderMeteor(CRGB* buf, int n, int masterN, int& lastPos, bool advanceColor) {
     static const uint8_t TAIL_LEN = 8;
 
     fadeToBlackBy(buf, n, 40);
 
-    int pos = (meteorTick / 3) % (n + TAIL_LEN);
+    int totalRange = masterN + TAIL_LEN;
+    int pos = (meteorTick / 3) % totalRange;
 
-    if (meteorLastPos >= 0 && pos < meteorLastPos) {
+    if (advanceColor && lastPos >= 0 && pos < lastPos) {
       meteorColorIdx = (meteorColorIdx + 1) % METEOR_PALETTE_COUNT;
     }
-    meteorLastPos = pos;
+    lastPos = pos;
 
     CRGB headCol = meteorPalettes[meteorColorIdx].head;
     CRGB tailCol = meteorPalettes[meteorColorIdx].tail;
@@ -216,23 +218,23 @@ namespace {
     }
   }
 
-  void applyEffect(CRGB* buf, uint8_t* heat, int n, const DeviceState& s) {
+  void applyEffect(CRGB* buf, uint8_t* heat, int n, int masterN, int& meteorLastPos, bool meteorAdvColor, const DeviceState& s) {
     switch (s.effect) {
-      case EffectType::STATIC:    renderStatic(buf, n, s);        break;
-      case EffectType::RAINBOW:   renderRainbow(buf, n);          break;
-      case EffectType::BREATHING: renderBreathe(buf, n);          break;
-      case EffectType::PULSE:     renderPulse(buf, n);            break;
-      case EffectType::AURORA:    renderAurora(buf, n);           break;
-      case EffectType::CANDLE:    renderCandle(buf, n);           break;
-      case EffectType::FIRE:      renderFire(buf, heat, n);       break;
-      case EffectType::CYBERWAVE: renderCyberwave(buf, n);        break;
-      case EffectType::STROBE:    renderStrobe(buf, n);           break;
-      case EffectType::RAIN:      renderRain(buf, n);             break;
-      case EffectType::METEOR:    renderMeteor(buf, n);           break;
-      case EffectType::TWINKLE:   renderTwinkle(buf, n);          break;
-      case EffectType::CHASE:     renderChase(buf, n);            break;
-      case EffectType::PARTY:     renderParty(buf, n);            break;
-      case EffectType::BOUNCE:    renderBounce(buf, n);           break;
+      case EffectType::STATIC:    renderStatic(buf, n, s);                                break;
+      case EffectType::RAINBOW:   renderRainbow(buf, n);                                  break;
+      case EffectType::BREATHING: renderBreathe(buf, n);                                  break;
+      case EffectType::PULSE:     renderPulse(buf, n);                                    break;
+      case EffectType::AURORA:    renderAurora(buf, n);                                   break;
+      case EffectType::CANDLE:    renderCandle(buf, n);                                   break;
+      case EffectType::FIRE:      renderFire(buf, heat, n);                               break;
+      case EffectType::CYBERWAVE: renderCyberwave(buf, n);                                break;
+      case EffectType::STROBE:    renderStrobe(buf, n);                                   break;
+      case EffectType::RAIN:      renderRain(buf, n);                                     break;
+      case EffectType::METEOR:    renderMeteor(buf, n, masterN, meteorLastPos, meteorAdvColor); break;
+      case EffectType::TWINKLE:   renderTwinkle(buf, n);                                  break;
+      case EffectType::CHASE:     renderChase(buf, n);                                    break;
+      case EffectType::PARTY:     renderParty(buf, n);                                    break;
+      case EffectType::BOUNCE:    renderBounce(buf, n);                                   break;
     }
   }
 
@@ -324,8 +326,9 @@ void update(const DeviceState& state) {
         delay(2);
       }
       offApplied = true;
-      transitionState = Transition::IDLE;
+      transitionState      = Transition::IDLE;
       transitionBrightness = 255;
+      strobeState          = false;
       Serial.println(F("[LED] Power OFF applied - all LEDs set to (0,0,0)"));
     }
     return;
@@ -378,9 +381,9 @@ void update(const DeviceState& state) {
   DeviceState rs = state;
   rs.effect       = activeEffect;
 
-  applyEffect(leds1, heat1, LED_COUNT_1, rs);
+  applyEffect(leds1, heat1, LED_COUNT_1, LED_COUNT_1, meteorLastPos1, true,  rs);
 #if DUAL_STRIP_ENABLED
-  applyEffect(leds2, heat2, LED_COUNT_2, rs);
+  applyEffect(leds2, heat2, LED_COUNT_2, LED_COUNT_1, meteorLastPos2, false, rs);
 #endif
 
   advancePhase(activeEffect, LED_COUNT_1);
